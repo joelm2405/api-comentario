@@ -3,14 +3,14 @@ service: api-comentario
 
 provider:
   name: aws
-  runtime: python3.12	
-  # Default memory size for functions (default: 1024MB)
+  runtime: python3.12
   memorySize: 1024
   timeout: 30
   iam:
     role: arn:aws:iam::187978737113:role/LabRole
   environment:
     TABLE_NAME: ${sls:stage}-t_comentarios
+    S3_BUCKET_NAME: ${sls:stage}-ingesta-comentarios-bucket  # Añadimos el nombre del bucket
 
 functions:
   crear:
@@ -21,6 +21,13 @@ functions:
           method: post
           cors: true
           integration: lambda
+    # Permisos para escribir en el bucket S3
+    iamRoleStatements:
+      - Effect: "Allow"
+        Action:
+          - "s3:PutObject"
+        Resource:
+          - "arn:aws:s3:::${self:provider.environment.S3_BUCKET_NAME}/*"
 
 resources:
   Resources:
@@ -38,5 +45,12 @@ resources:
             KeyType: HASH
           - AttributeName: uuid
             KeyType: RANGE
-        # Set the capacity to auto-scale
         BillingMode: PAY_PER_REQUEST
+
+    # Definimos el bucket S3 para cada stage
+    IngestaComentariosBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.S3_BUCKET_NAME}
+        VersioningConfiguration:
+          Status: Enabled
